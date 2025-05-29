@@ -16,14 +16,13 @@ const { initializeApp } = require("firebase/app"); // 로컬에서 참조함
 const { getFirestore } = require("firebase/firestore"); // 로컬에서 참조함
 const { setInterval } = require('timers');
 const firebaseConfing = {
-  apiKey: "",
-  authDomain: "",
-  databaseURL: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: "",
-  measurementId: ""
+  apiKey: "AIzaSyC2sX17c56GRR-6re5lKc3RAeVsRInT5hI",
+  authDomain: "prj-2505.firebaseapp.com",
+  databaseURL: "https://prj-2505-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "prj-2505",
+  storageBucket: "prj-2505.firebasestorage.app",
+  messagingSenderId: "583453385529",
+  appId: "1:583453385529:web:0ab601ab0b6c8f61f53ee8",
 };
 // firebase 앱 초기화
 const talkApp = initializeApp(firebaseConfing)
@@ -37,9 +36,31 @@ app.use(serve(staticPath)); // 5
 // 9 - public의 경로와  views의 경로에 같은파일이 있으면 구별이 안된다
 app.use(mount('/public', serve('src/public'))) // 처리(이벤트)- 말하기
 // 서버는 5000번 포트를 열어놓고 기다린다 - waiting
+// 시간정보는 서버에서 제공하다
+// 타임서버를 구현한다
+let curtime = '' // 전변- 다른함수나 {} 안에서도 호출할 수 있다
+const setClock = () => {
+  const timeInfo = new Date()
+const hour = modifyNumber(timeInfo.getHours())
+const min = modifyNumber(timeInfo.getMinutes())
+const sec = modifyNumber(timeInfo.getSeconds())
+curtime = hour+':'+min+":"+sec
+}
 
+const modifyNumber = (num) => {
+  if(parseInt(num) < 10){
+    return "0"+num
+  }else{
+    return num // else 뒤에가 없을때의 차이를 비교 해보고 좀더 열린 사고로 해보기
+  }
+}
 // 기본 라우터 설정하기
 app.use(async(ctx)=> {
+  // 1초마다 한 번씩 setClock 호출됨
+  // 함수도 객체이기 때문에 괄호는 없어도 괜찮다
+  // 함수도 파라미터로 사용이 가능하다 - 일급함수
+  // 전변 curtime에 현재 시간이 담긴다
+  await setIntervla(setClock, 1000)
   if(ctx.path === '/'){
     ctx.type = 'text/html'
     // index.html 문서가 하는 일을 여기에 작성해 본다
@@ -70,7 +91,6 @@ app.use(async(ctx)=> {
     ctx.body = `Page Not Found`
   }
 });//end of use
-
 // npm i koa-route 먼저 설치한다
 // 왜냐하면 koa-websocket과 koa-route는 서로 의존관계에 있기 때문에
 // Using routes

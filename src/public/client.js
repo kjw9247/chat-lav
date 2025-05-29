@@ -20,7 +20,9 @@
   if(!formEl || !inputEl){
     throw new Error('formEl or inputEl or chatEl is null')
   }
-  const chats = []
+  // 아래 배열은 서버에서 보내준 정보를 담는 배열이다 - 청취한 정보가 담긴다
+  // 청취하기는 onmessage 이벤트 핸들러 처리한다
+  const chats = [] // 선언만 했다. onmessage 채운다 -> push
   // 사용자가 입력한 메시지를 보내는 것은 submit에서 한다
   formEl.addEventListener('submit', (e) => {
     // 페이지가 refresh되지 않고 다음 액션을 정상적으로 
@@ -40,7 +42,58 @@
   // 서버에서 보낸 메시지 청취하기
   // onmessage 이벤트 핸들러를 websocket이 제공한다
   // npm i koa-websocket 
+  // 화면과 로직은 분리한다
+  const drawChats = () => {
+    //insert here
+    chatsEl.innerHTML = '' // 현재 대화 목록을 지운다
+    // div안에 새로운 div를 만들어서 채운다
+    // <div><div>안쪽에 입력 된다</div></div>
+    // [strawberry] : 안녕하세요 (12:37:50)
+    chats.forEach(({message, nickname, curtime}) => {// 구조 분해 할당 할떄는 순서는 괜찮다
+      const div = document.createElement('div')
+      div.innerText = `[${nickname}] : ${message} (${curtime})`
+    // 바깥쪽 div에 안쪽 div에 추가한다 - appendChild
+    chatsEl.appendChild(div)
+    })
+  }// end of drawChats
+  // 사용자가 입력한 메시지를 서버에서 보내주면 화면 출력한다
+  // 파라미터 자리는 사용자가 입력한 값을 담는 자리이다
+  // 누가 넣어주나? 아래 이벤트는 소켓 통신이 호출하는 콜백 함수이다
+  // 콜백함수는 개발자가 호출하는 함수가 아니다
+  // - 시스템에서 이벤트가 감지 되었을 때(상태값이 변경 될 때마다)
+  // 서버에서 전송한 메시지를 모두 다 받았을 때 주입된다 
+  // {data: {type:'', payload:{nickname: 'strawberry', message: '메시지', curtime: ''}}}
   socket.addEventListener('message', (event) => {
+    console.log(event.data);
+    const { type, payload } = JSON.parse(event.data)
+    console.log('type ==> '+ type);
+    console.log(payload);
+    //console.log('payload ==> '+ payload); // [object Object] - Dataset - 백엔드
+    //console.log('nickname ==> '+ payload.nickname);
+    //console.log('message ==> '+ payload.message);
+    //console.log('curtime ==> '+ payload.curtime);
+    // 아래 조건문에서 사용하는 type은 어디서 가져오나?
+
+    if('sync' === type){
+      console.log('sync');
+      // insert here - 서버에서 청취한 object를 chats 배열에 push 한다
+      // map을 꺼내는 방법
+      const { talks: syncedChats } = payload
+      Object.keys(syncedChats).map(key => {
+        chats.push(syncedChats[key].payload)
+      })
+    }else if('talk' === type){
+      console.log('talk');
+      // insert here - 서버에서 청취한 object를 chats 배열에 push 한다
+      const talk = payload
+      console.log(talk);
+      // console.log(JSON.stringify(talk));
+      chats.push(talk)
+      console.log(chats);
+    }
+    drawChats() // sync일때나 talk일때 공통이다
+    // 반드시 조건문 밖에서 호출 해야한다. - 위치
+
     //서버에서 보낸 메시지 청취하기
     chats.push(JSON.parse(event.data)) // 청취한 메시지를 배열에 담는다
     chatsEl.innerHTML = '' // 화면 초기화

@@ -13,8 +13,8 @@ const websockify = require('koa-websocket') // 9 - 웹소켓
 const app = websockify(new Koa()) // 10 - 머지
 const route = require('koa-route') // 11 요청을 구분해서 처리
 const { initializeApp } = require("firebase/app"); // 로컬에서 참조함
-const { getFirestore } = require("firebase/firestore"); // 로컬에서 참조함
-const { setInterval } = require('timers');
+const { getFirestore, collection, query, addDoc, getDocs } = require("firebase/firestore"); // 로컬에서 참조함
+
 const firebaseConfing = {
   apiKey: "AIzaSyC2sX17c56GRR-6re5lKc3RAeVsRInT5hI",
   authDomain: "prj-2505.firebaseapp.com",
@@ -60,7 +60,7 @@ app.use(async(ctx)=> {
   // 함수도 객체이기 때문에 괄호는 없어도 괜찮다
   // 함수도 파라미터로 사용이 가능하다 - 일급함수
   // 전변 curtime에 현재 시간이 담긴다
-  await setIntervla(setClock, 1000)
+  await setInterval(setClock, 1000)
   if(ctx.path === '/'){
     ctx.type = 'text/html'
     // index.html 문서가 하는 일을 여기에 작성해 본다
@@ -91,6 +91,22 @@ app.use(async(ctx)=> {
     ctx.body = `Page Not Found`
   }
 });//end of use
+
+// 앞에 대화 내용을 가죠오는 함수 배치하기
+const getChatsCollection = async() => {
+  console.log('getChatsCollection 호출');
+  // firestore api
+  const q = query(collection(db, 'talk250529'))
+  console.log(q);
+  const snapshot = await getDocs(q)
+  console.log(snapshot);
+  // data는 n건의 정보를 쥐고 있다 - [{},{},{}], {[{},{},{}]}
+  // forEach문 map문
+  const data = snapshot.docs.map(doc => doc.data)
+  return data
+}// end of getChatsCollection
+
+
 // npm i koa-route 먼저 설치한다
 // 왜냐하면 koa-websocket과 koa-route는 서로 의존관계에 있기 때문에
 // Using routes
@@ -98,7 +114,25 @@ app.ws.use(
   // ws는 websocket의 약자
   // -> /test/:id로 요청이 오면 아래를 처리하라
   route.all('/ws', async(ctx) => {
-  
+    console.log('새로 입장한 사람이라면... 여기부터 시작함');
+    // 아래 함수는 firestore에서 데이터를 읽어오기 - Back End(NodeJS, Spring Boot, python, C#)
+    // DB를 연동하는 코드가 안보인다
+    const talks = getChatsCollection()
+    // 앞에 문자열을 붙여서 출력하는 경우와 아닌 경우와 출력 결과가
+    // 다르다 - 기억해야함 - 같은 경우도 있다
+    // console.log('talks : '+ talks);
+    console.log(talks);
+    /*
+    ctx.websocket.send(JSON.stringify({
+      // 클라이언트가 입장 했을 때 sync인지 talk인지를 서버가 결정 해야한다
+      // 그래서 서버가 결정해야 하므로 type에는 상수를 쓴다
+      type: 'sync', // firestore에서 가져온다
+      payload: {
+        talks, //변수 - talk에 담긴 값음 어디서 가져오는가
+    
+        }
+}))*/
+    
     // ping/pong설정하기
     //일정시간이 지나면 연결이 끊어진다 - 아무런 움직이 없는 상태로
     const interval = setInterval(() => {
@@ -112,37 +146,67 @@ app.ws.use(
       console.log('클라이언트로 부터 pong메시지 수신');
     })
 
-  ctx.websocket.on('message', (data) => {
+  ctx.websocket.on('message', async(data) => {
     //클라이언트가 보낸 메시지를 출력한다
-    console.log(typeof data); // object인가? string인가?
+    console.log(typeof data); // object인가? string인가? object이다 {type" '', payload: {}}
     if(typeof JSON.stringify(data)!== 'string'){
       return; // if문에서 return을 만나면 콜백 핸들러를 빠져나감
     }
     // string이면 여기로 온다
     const { nickname, message } = JSON.parse(data)
-    console.log(`${nickname}, ${message}`);
+    console.log(`${nickname}, ${message}, ${curtime}`);
 
+    try {
+      // 예와가 발생할 가능성이 있는 코드 작성한다
+      // 만일 예외가 발생하지 않으면 catch문 실행기회를 가지 않는다
+      const docRef = await addDoc(collection(db, 'talk250529'),{
+        type: 'talk',
+        payload: {
+          nickname,
+          message,
+          curtime
+        }
+
+      })// end of addDoc
+     // 여기까지 진행이 되었다면
+      console.log('저장서공');
+      }catch (error) {     
+      console.error('저장 실패', error);
+    }
+    /************************************************** 
+    *BroadCaste 섹션
+    * 
+    **************************************************/
     /*
     문제제기 - 현재는 메세지를 보낸 사람에게만 돌려주고 있는 유니케스트이다
     만일 모든 사람에게 메세지를 보내고 싶다면 어떻게 해야 할까
     브로드캐스트 처리를 하면 된다
     */
-
+    // 서버에 접속한 여러 클라이언에 대한 접점(소켓- 서버에 있지만 client소켓)이 필요함
+    // 서버에 있는 소켓이지만 클라이언트 소켓이므로 청취한 메시지를 쓸 수 있다(말할 수 있다)
     const { server } = app.ws
     // nill에 대한 체크를 한다
     // sever가 null이면  속성이나 함수를 호출 할 수 없다
     if(!server){// 앞에 not이 있다
       return // return을 만나면 use함수 전체를 탈출함
     }
-
+    // clients - 소켓 여러개
+    // client - 한개의 소켓
+    // 물리적으로 떨어져 있는 클라이언트 소켓 정보를 서버에서 쥐고 있다
+    // 서버가 쥐고 있는 모든 클라이언트에게 메세지를 보낸다
     server.clients.forEach(client => {
-      if(client.readyState === client.OPEN)
+      // if(client.readyState === client.closed){}
+      // if(client.readyState === client.OPEN)
         client.send(JSON.stringify({
-          message: message,
-          nickname : nickname
-        }))
-    })
-
+          type: 'talk',
+        payload: {
+          nickname,
+          message,
+          curtime
+        }
+      }))// end of send
+    // end of if
+    })// end of forEach
   });
 }));
     

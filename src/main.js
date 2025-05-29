@@ -16,13 +16,13 @@ const { initializeApp } = require("firebase/app"); // 로컬에서 참조함
 const { getFirestore, collection, query, addDoc, getDocs } = require("firebase/firestore"); // 로컬에서 참조함
 
 const firebaseConfing = {
-  apiKey: "AIzaSyC2sX17c56GRR-6re5lKc3RAeVsRInT5hI",
-  authDomain: "prj-2505.firebaseapp.com",
-  databaseURL: "https://prj-2505-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "prj-2505",
-  storageBucket: "prj-2505.firebasestorage.app",
-  messagingSenderId: "583453385529",
-  appId: "1:583453385529:web:0ab601ab0b6c8f61f53ee8",
+  apiKey: "",
+  authDomain: "",
+  databaseURL: "",
+  projectId: "",
+  storageBucket: "",
+  messagingSenderId: "",
+  appId: "",
 };
 // firebase 앱 초기화
 const talkApp = initializeApp(firebaseConfing)
